@@ -3,7 +3,11 @@ cp client.py /usr/bin/airclip-client
 chmod +x /usr/bin/airclip-client
 
 mkdir -p .airclip
-echo "{ \"Client-ID\": \"21320\" }" > $HOME/.airclip/client.conf
+echo "{" > $HOME/.airclip/client.conf
+echo " \"Client-ID\": \"21320\", " >> $HOME/.airclip/client.conf
+echo " \"Server-URL\": \"http://127.0.0.1:5000/airclip\" " >> $HOME/.airclip/client.conf
+echo "}" >> $HOME/.airclip/client.conf
+
 
 apt-get -y install xbindkeys
 xbindkeys --defaults > ~/.xbindkeysrc
