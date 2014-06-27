@@ -1,3 +1,5 @@
+#!/usr/bin/env python 
+
 import requests
 import datetime
 import json
@@ -5,30 +7,58 @@ import os
 import sys
 import pyperclip
 
-jheaders = {'Content-type': 'application/json', 'Client-ID': '22580'}
+jheaders = {'Content-type': 'application/json', 'Client-ID': '22581'}
+serverUrl = 'http://127.0.0.1:5000/airclip'
 
-# for i in range(10):
-# 	jData = {'data': 'Current iteration: %s' %str(i)}
-# 	reqP = requests.post('http://127.0.0.1:8080/airclip', data = jData, headers=jheaders)
-# 	reqG = requests.get('http://127.0.0.1:8080/airclip', headers=jheaders)
-# 	print reqG.text
-
+def getConf():
+    # get client ID
+    global jheaders
+    fileConf = os.environ['HOME'] + '/.airclip/client.conf'
+    with open(fileConf, 'r') as confReader:
+        strClientConf = confReader.read()
+        print strClientConf
+        jheaders['Client-ID'] = json.loads(strClientConf)['Client-ID']
+        print jheaders
 
 def main():
-    if sys.argv[1] == '1':  # copy from clipboard
-        selText = os.popen('xsel').read()
-        print 'Copied:', selText
-        jData = {'data': selText}
-        reqP = requests.post(
-            'http://127.0.0.1:5000/airclip', data=json.dumps(jData), headers=jheaders)
-        print reqP
 
-    elif sys.argv[1] == '2':
-        reqG = requests.get('http://127.0.0.1:5000/airclip', headers=jheaders)
-        print reqG.text
+    # TODO check for correct statuses being returned
+
+    if sys.argv[1] == 'copy':  
+        selText = os.popen('xsel').read()
+        jData = {'data': selText, 'action': 'copy'}
+        reqP = requests.post(
+            serverUrl, data=json.dumps(jData), headers=jheaders)
+        if reqP.status_code == 201:
+            print 'Copied:', selText
+        else:
+            print 'Server returned code %s: %s' %(reqP.status_code, reqP.text)
+            return 
+
+    elif sys.argv[1] == 'paste':
+        reqG = requests.get(serverUrl, headers=jheaders)
+        if reqG.status_code == 200:
+            print 'Ready to paste'
+        else:
+            print 'Server returned code %s: %s' %(reqG.status_code, reqG.text)
+            return
+
         strPaste = json.loads(reqG.text)['data']
         pyperclip.copy(strPaste)
         pyperclip.paste()
 
+    elif sys.argv[1] == 'append':
+        selText = os.popen('xsel').read()
+        jData = {'data': selText, 'action': 'append'}
+        reqA = requests.post(
+            serverUrl, data=json.dumps(jData), headers=jheaders)
+        
+        if reqA.status_code == 202:
+            print 'Appended', selText
+        else:
+            print 'Server returned code %s: %s' %(reqA.status_code, reqA.text)
+
+
 if __name__ == '__main__':
-    main()
+    getConf()
+    # main()

@@ -44,25 +44,49 @@ def api_airclip():
         # TODO: VALIDATE
         # 
 
-        resp = Response(strResponse, status=201, mimetype='application/json')
+        resp = Response(strResponse, status=200, mimetype='application/json')
 
     elif request.method == 'POST':
         jData = request.json['data']
         jId = request.headers['Client-ID']
+        jAction = request.json['action']
         jTimestamp = str(datetime.datetime.now())
 
-        writeDoc = { "Client-ID": jId, "timestamp" : jTimestamp, "data": jData }
+        if jAction == 'copy':
 
-        # write to db
-        mongoColl = db[jId]
-        mongoColl.insert(writeDoc)
+            writeDoc = { "Client-ID": jId, "timestamp" : jTimestamp, "data": jData }
 
-        # get latest
-        # mongoColl.find().sort( [['_id', -1]] ).limit(1).next()
+            # write to db
+            # TODO: Handle errors
+            mongoColl = db[jId]
+            mongoColl.insert(writeDoc)
 
-        strResponse = json.dumps({"status": "done"}, encoding='utf-8')
-        resp = Response(strResponse, status=200, mimetype='application/json')
+            if True:
+                strResponse = json.dumps({"statusmsg": "Copied to clipboard"}, encoding='utf-8')
+                resp = Response(strResponse, status=201, mimetype='application/json')
+            else:
+                strResponse = json.dumps({"statusmsg": "Copying failed"}, encoding='utf-8')
+                resp = Response(strResponse, status=401, mimetype='application/json')
 
+        elif jAction == 'append':
+            # find latest
+            mongoColl = db[jId]
+            latestEntry = mongoColl.find().sort( [['_id', -1]] ).limit(1).next()
+            latestId = latestEntry['_id']
+            latestData = latestEntry['data']
+            newData = '%s %s' %(latestData, jData)
+
+            # update record
+            writeDoc = { "Client-ID": jId, "timestamp" : jTimestamp, "data": newData }
+            updateStatus = mongoColl.update({"_id": latestId}, writeDoc)
+
+            if updateStatus['err'] is None:
+                strResponse = json.dumps({"statusmsg": "Clipboard appended"}, encoding='utf-8')
+                resp = Response(strResponse, status=202, mimetype='application/json')
+            else:                
+                strResponse = json.dumps({"statusmsg": "Appending failed"}, encoding='utf-8')
+                resp = Response(strResponse, status=402, mimetype='application/json')
+  
     return resp
 
 
