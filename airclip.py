@@ -14,9 +14,8 @@ mongoDbName = 'defaultDB'
 mongoConn = pymongo.MongoClient()
 db = mongoConn[mongoDbName]
 
+
 # HOME DOC
-
-
 @app.route('/')
 def api_root():
     return 'Welcome'
@@ -33,18 +32,22 @@ def api_airclip():
         mongoColl = db[jId]
         
         # GET LATEST THINGY
-        latestEntry = mongoColl.find().sort( [['_id', -1]] ).limit(1).next()
+        latestEntry = next(mongoColl.find().sort( [['_id', -1]] ).limit(1), None)
+        successStatus = (latestEntry is not None)
 
-        # CREATE JSON RESPONSE
-        jResponse = {"timestamp": latestEntry['timestamp'],
-                        "data": latestEntry['data']}
+        if successStatus is True:
+            # CREATE JSON RESPONSE
+            jResponse = {"timestamp": latestEntry['timestamp'],
+                         "data": latestEntry['data']}
 
-        strResponse = json.dumps(jResponse, encoding='utf-8')
-
-        # TODO: VALIDATE
-        # 
-
-        resp = Response(strResponse, status=200, mimetype='application/json')
+            strResponse = json.dumps(jResponse, encoding='utf-8')
+            resp = Response(strResponse, status=200, mimetype='application/json')
+        
+        else:
+            strResponse = json.dumps({"statusmsg": "Getting data failed"}, encoding='utf-8')
+            resp = Response(strResponse, status=405, mimetype='application/json')
+        
+        return resp
 
     elif request.method == 'POST':
         jData = request.json['data']
@@ -60,8 +63,9 @@ def api_airclip():
             # TODO: Handle errors
             mongoColl = db[jId]
             mongoColl.insert(writeDoc)
+            successStatus = True
 
-            if True:
+            if successStatus is True:
                 strResponse = json.dumps({"statusmsg": "Copied to clipboard"}, encoding='utf-8')
                 resp = Response(strResponse, status=201, mimetype='application/json')
             else:
@@ -71,16 +75,26 @@ def api_airclip():
         elif jAction == 'append':
             # find latest
             mongoColl = db[jId]
-            latestEntry = mongoColl.find().sort( [['_id', -1]] ).limit(1).next()
-            latestId = latestEntry['_id']
-            latestData = latestEntry['data']
-            newData = '%s %s' %(latestData, jData)
+            writeDoc = { "Client-ID": jId, "timestamp" : jTimestamp, "data": jData }
 
-            # update record
-            writeDoc = { "Client-ID": jId, "timestamp" : jTimestamp, "data": newData }
-            updateStatus = mongoColl.update({"_id": latestId}, writeDoc)
+            latestEntry = next(mongoColl.find().sort( [['_id', -1]] ).limit(1), None)
 
-            if updateStatus['err'] is None:
+            if latestEntry is not None:
+                latestId = latestEntry['_id']
+                latestData = latestEntry['data']
+                newData = '%s %s' %(latestData, jData)
+
+                # update record
+                writeDoc["data"] = newData
+                print  mongoColl.update({"_id": latestId}, writeDoc)
+                # successStatus = ( mongoColl.update({"_id": latestId}, writeDoc)['err'] is None )
+                successStatus = True
+            
+            else:
+                mongoColl.insert(writeDoc)
+                successStatus = True
+
+            if successStatus is True:
                 strResponse = json.dumps({"statusmsg": "Clipboard appended"}, encoding='utf-8')
                 resp = Response(strResponse, status=202, mimetype='application/json')
             else:                
@@ -120,4 +134,4 @@ def api_airclip_old():
     return resp
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host="0.0.0.0", port=80)

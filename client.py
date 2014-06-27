@@ -26,6 +26,8 @@ def getConf():
 def main():
 
     # TODO check for correct statuses being returned
+    print jheaders
+    print serverUrl
 
     if sys.argv[1] == 'copy':
         selText = os.popen('xsel').read()
@@ -47,7 +49,8 @@ def main():
             return
 
         strPaste = json.loads(reqG.text)['data']
-        pyperclip.copy(strPaste)
+        print strPaste
+        pyperclip.copy(strPaste.encode('ascii', 'ignore'))
         pyperclip.paste()
 
     elif sys.argv[1] == 'append':
